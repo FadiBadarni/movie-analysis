@@ -1,6 +1,8 @@
-neo4j
+neo4j~=5.18.0
 requests
-python-dotenv
-networkx
+python-dotenv~=1.0.1
+networkx~=3.2.1
 pandas
-matplotlib
+matplotlib~=3.8.3
+
+numpy~=1.26.4
