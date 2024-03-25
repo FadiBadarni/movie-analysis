@@ -30,4 +30,10 @@ class Neo4jConnection:
                 session.close()
         return response
 
+    def __enter__(self):
+        self.__driver = GraphDatabase.driver(self.__uri, auth=(self.__user, self.__password))
+        return self
 
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if self.__driver is not None:
+            self.__driver.close()
