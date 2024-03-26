@@ -73,3 +73,32 @@ def fetch_genre_movie_counts(neo4j_conn):
     except Exception as e:
         print(f"Failed to fetch genre movie counts: {e}")
         return []
+
+
+def fetch_movies_cast_count(neo4j_conn):
+    # Query to count the total number of movies
+    query_movies_count = "MATCH (m:Movie) RETURN COUNT(m) AS totalMovies"
+
+    # Query to fetch the top 5 most popular cast members for each movie and count unique cast members
+    query_cast_count = """
+    MATCH (m:Movie)-[:HAS_CAST]->(c:Cast)
+    WITH m, c ORDER BY c.popularity DESC
+    WITH m, COLLECT(c)[0..5] AS topCasts
+    UNWIND topCasts AS cast
+    RETURN COUNT(DISTINCT cast) AS totalCastMembers
+    """
+
+    try:
+        # Execute the movie count query
+        movies_result = neo4j_conn.query(query_movies_count)
+        total_movies = movies_result[0]['totalMovies'] if movies_result else 0
+
+        # Execute the cast count query
+        cast_result = neo4j_conn.query(query_cast_count)
+        total_cast_members = cast_result[0]['totalCastMembers'] if cast_result else 0
+
+        return total_movies, total_cast_members
+    except Exception as e:
+        print(f"Failed to fetch movies and cast counts: {e}")
+        return 0, 0
+

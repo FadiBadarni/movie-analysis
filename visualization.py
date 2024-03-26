@@ -29,8 +29,6 @@ def visualize_graph(B):
 
 
 def visualize_genre_distribution(genre_movie_counts):
-    import matplotlib.pyplot as plt
-
     # Prepare data
     genres = [item[0] for item in genre_movie_counts]
     counts = [item[1] for item in genre_movie_counts]
@@ -71,3 +69,29 @@ def visualize_genre_distribution(genre_movie_counts):
     plt.show()
 
 
+def visualize_movie_cast_counts(movie_count, cast_count):
+    categories = ['Movies', 'Top 5 Popular Cast Members per Movie']
+    counts = [movie_count, cast_count]
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    bars = ax.bar(categories, counts, color=['#1f77b4', '#ff7f0e'])
+
+    max_count = max(counts)
+    ax.set_ylim(0, max_count + max_count * 0.2)
+
+    for bar in bars:
+        height = bar.get_height()
+        ax.annotate(f'{height}',
+                    xy=(bar.get_x() + bar.get_width() / 2, height),
+                    xytext=(0, 5),
+                    textcoords="offset points",
+                    ha='center', va='bottom',
+                    color='black')
+
+    ax.set_ylabel('Total Count')
+    ax.set_title('Total Number of Movies and Top 5 Popular Cast Members Analyzed')
+    ax.set_xticks(range(len(categories)))
+    ax.set_xticklabels(categories, rotation=45, ha="right")
+
+    plt.tight_layout()
+    plt.show()
