@@ -58,3 +58,18 @@ def fetch_movies_with_top_casts(neo4j_conn, popular_casts):
     """
     return neo4j_conn.query(query_movies_with_casts)
 
+
+def fetch_genre_movie_counts(neo4j_conn):
+    # Cypher query to match each genre with the count of associated movies
+    query = """
+    MATCH (m:Movie)-[:HAS_GENRE]->(g:Genre)
+    WITH g.name AS Genre, COUNT(m) AS MovieCount
+    RETURN Genre, MovieCount ORDER BY MovieCount DESC
+    """
+    try:
+        # Execute the query
+        result = neo4j_conn.query(query)
+        return result
+    except Exception as e:
+        print(f"Failed to fetch genre movie counts: {e}")
+        return []
