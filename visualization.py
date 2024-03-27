@@ -40,12 +40,15 @@ def visualize_genre_distribution(genre_movie_counts):
     def autopct_format(values):
         def my_format(pct):
             total = sum(values)
-            val = int(round(pct*total/100.0))
-            return '{p:.2f}%\n({v:d})'.format(p=pct,v=val) if pct > 2 else ''
+            val = int(round(pct * total / 100.0))
+            return '{p:.2f}%\n({v:d})'.format(p=pct, v=val) if pct > 2 else ''
+
         return my_format
 
     # Create the pie chart
-    wedges, texts, autotexts = ax.pie(counts, autopct=autopct_format(counts), startangle=140, colors=plt.cm.tab20.colors, textprops=dict(color="black", weight="bold", fontsize=8))
+    wedges, texts, autotexts = ax.pie(counts, autopct=autopct_format(counts), startangle=140,
+                                      colors=plt.cm.tab20.colors,
+                                      textprops=dict(color="black", weight="bold", fontsize=8))
 
     # Draw a circle at the center to make it a donut chart
     centre_circle = plt.Circle((0, 0), 0.70, color='white', lw=0)
@@ -95,3 +98,47 @@ def visualize_movie_cast_counts(movie_count, cast_count):
 
     plt.tight_layout()
     plt.show()
+
+
+def visualize_common_cast_graph(processed_data):
+    # Create a new graph
+    B = nx.Graph()
+
+    # Initialize positions dictionaries
+    pos_movies = {}
+    pos_cast = {}
+
+    # Count the number of movies for even distribution
+    movie_count = sum(1 for movie in processed_data)
+    movie_spacing = 20 / movie_count  # Adjust spacing based on your preference or graph size
+
+    # Create a node for each movie and cast member, and add edges between them
+    movie_index = 0  # To track the current movie index for positioning
+    for movie in processed_data:
+        movie_title = movie['MovieTitle']
+        B.add_node(movie_title, bipartite=0, type='movie')
+
+        for cast_name in movie['CastNames']:
+            if cast_name not in B:
+                B.add_node(cast_name, bipartite=1, type='cast')
+                # Stack cast nodes vertically with consistent gaps
+                pos_cast[cast_name] = (2, -len(pos_cast) * 2)  # Adjust as needed
+            B.add_edge(movie_title, cast_name)
+
+        # Position movie nodes with even spacing
+        pos_movies[movie_title] = (1, -movie_spacing * movie_index)
+        movie_index += 1  # Move to the next index for the next movie
+
+    # Combine positions
+    pos = {**pos_movies, **pos_cast}
+
+    # Draw the graph
+    plt.figure(figsize=(20, 20))
+    nx.draw(B, pos, with_labels=True, node_size=3000,
+            node_color=['skyblue' if attr['type'] == 'movie' else 'lightgreen' for node, attr in B.nodes(data=True)],
+            font_weight='bold', font_size=9, alpha=0.6)
+
+    plt.title('Bipartite Graph of Movies and Common Cast Members', fontsize=20)
+    plt.axis('off')
+    plt.show()
+
