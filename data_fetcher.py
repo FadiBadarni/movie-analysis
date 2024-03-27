@@ -1,5 +1,6 @@
 import os
 
+from data_process import process_movies_data
 from neo4j_connector import Neo4jConnection
 
 
@@ -13,13 +14,10 @@ def fetch_movie_data():
     neo4j_conn = Neo4jConnection(NEO4J_URI, NEO4J_USER, NEO4J_PASSWORD)
 
     try:
-        # Step 1: Fetch popular casts (casts with appearances in more than one movie)
         popular_casts = fetch_popular_casts(neo4j_conn)
 
-        # Step 2: Fetch movies that feature any of these popular casts and limit to top 5 casts based on popularity
         movies_with_top_casts = fetch_movies_with_top_casts(neo4j_conn, popular_casts)
 
-        # You can process `movies_with_top_casts` further if needed or directly return it
         return movies_with_top_casts
 
     except Exception as e:
@@ -33,17 +31,17 @@ def fetch_popular_casts(neo4j_conn):
     MATCH (movie:Movie)-[:HAS_CAST]->(cast:Cast)
     WITH cast, COUNT(*) AS numMovies
     WHERE numMovies > 1
-    RETURN collect(cast.name) AS popularCastNames;
+    RETURN cast.name AS CastName, COUNT(*) AS Appearances
+    ORDER BY Appearances DESC
+    LIMIT 10
     """
     result = neo4j_conn.query(query_popular_casts)
-    if result:
-        return result[0]['popularCastNames']
-    else:
-        return []
+    # Convert the result into a list of cast names
+    popular_casts = [record['CastName'] for record in result] if result else []
+    return popular_casts
 
 
 def fetch_movies_with_top_casts(neo4j_conn, popular_casts):
-    # Join the cast names into a string, each name quoted and separated by commas
     placeholder_string = ', '.join([f"'{name.replace("'", "\\'")}'" for name in popular_casts])
     query_movies_with_casts = f"""
     MATCH (movie:Movie)-[:HAS_CAST]->(cast:Cast)
@@ -54,13 +52,12 @@ def fetch_movies_with_top_casts(neo4j_conn, popular_casts):
     RETURN movie.title AS MovieTitle, movie.voteAverage AS VoteAverage, movie.revenue AS Revenue,
            [cast IN topCasts | cast.name] AS TopCastNames
     ORDER BY movie.releaseDate DESC
-    LIMIT 25;
+    LIMIT 5;
     """
     return neo4j_conn.query(query_movies_with_casts)
 
 
 def fetch_genre_movie_counts(neo4j_conn):
-    # Cypher query to match each genre with the count of associated movies
     query = """
     MATCH (m:Movie)-[:HAS_GENRE]->(g:Genre)
     WITH g.name AS Genre, COUNT(m) AS MovieCount
@@ -75,30 +72,21 @@ def fetch_genre_movie_counts(neo4j_conn):
         return []
 
 
-def fetch_movies_cast_count(neo4j_conn):
-    # Query to count the total number of movies
-    query_movies_count = "MATCH (m:Movie) RETURN COUNT(m) AS totalMovies"
+def fetch_common_cast(neo4j_conn):
+    popular_casts = fetch_popular_casts(neo4j_conn)
 
-    # Query to fetch the top 5 most popular cast members for each movie and count unique cast members
-    query_cast_count = """
-    MATCH (m:Movie)-[:HAS_CAST]->(c:Cast)
-    WITH m, c ORDER BY c.popularity DESC
-    WITH m, COLLECT(c)[0..5] AS topCasts
-    UNWIND topCasts AS cast
-    RETURN COUNT(DISTINCT cast) AS totalCastMembers
-    """
+    movies_data = []
 
-    try:
-        # Execute the movie count query
-        movies_result = neo4j_conn.query(query_movies_count)
-        total_movies = movies_result[0]['totalMovies'] if movies_result else 0
+    for cast_name in popular_casts:
+        query = """
+        MATCH (movie:Movie)-[:HAS_CAST]->(cast:Cast {name: $castName})
+        RETURN movie.title AS MovieTitle, movie.releaseDate AS ReleaseDate, collect(cast.name) AS CastNames
+        ORDER BY movie.releaseDate DESC
+        """
+        result = neo4j_conn.query(query, parameters={'castName': cast_name})
+        movies_data.extend(result)
 
-        # Execute the cast count query
-        cast_result = neo4j_conn.query(query_cast_count)
-        total_cast_members = cast_result[0]['totalCastMembers'] if cast_result else 0
+    processed_data = process_movies_data(movies_data)
+    top_5_movies = processed_data[:5]
 
-        return total_movies, total_cast_members
-    except Exception as e:
-        print(f"Failed to fetch movies and cast counts: {e}")
-        return 0, 0
-
+    return top_5_movies
